@@ -1,39 +1,58 @@
 import styles from "./select.module.css";
-import {useState, useEffect} from 'react';
+import { useState, useEffect } from "react";
 
-type SelectOption = {
+export type SelectOption = {
   label: string;
   value: string | number;
 };
 
+type MultipleSelectProps = {
+  multiple: true;
+  value: SelectOption[];
+  onChange: (value: SelectOption[]) => void;
+};
+
+type SingleSelectProps = {
+  multiple?: false;
+  // Whether we pass a value in at all or if the value is false then we're going to use these properties
+  value?: SelectOption;
+  onChange: (value: SelectOption | undefined) => void;
+};
+
 type SelectProps = {
   options: SelectOption[]; // List of the options
-  value?: SelectOption; // Current selected option
-  onChange: (value: SelectOption | undefined) => void; // Ability to change that option
-};
+} & (SingleSelectProps | MultipleSelectProps);
 
 // Whenever we make changes we just call onChange function in our App, we'll handle that appropriately
 // Just like in normal input when your value changes it calls on change, you update the value and you pass that value back down to your component
 
-export function Select({ value, onChange, options }: SelectProps) {
+export function Select({ multiple, value, onChange, options }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   function clearOptions() {
-    onChange(undefined);
+    multiple ? onChange([]) : onChange(undefined);
   }
 
   function selectOption(option: SelectOption) {
-    if (option !== value) onChange(option);
+    if (multiple) {
+      if (value.includes(option)) {
+        onChange(value.filter((o) => o !== option));
+      } else {
+        onChange([...value, option]);
+      }
+    } else {
+      if (option !== value) onChange(option);
+    }
   }
 
   function isOptionSelected(option: SelectOption) {
-    return option === value;
+    return multiple ? value.includes(option) : option === value;
   }
 
   useEffect(() => {
-    if (isOpen) setHighlightedIndex(0)
-  }, [isOpen])
+    if (isOpen) setHighlightedIndex(0);
+  }, [isOpen]);
 
   return (
     <>
@@ -43,7 +62,23 @@ export function Select({ value, onChange, options }: SelectProps) {
         tabIndex={0}
         className={styles.container}
       >
-        <span className={styles.value}>{value?.label}</span>
+        <span className={styles.value}>
+          {multiple
+            ? value.map((v) => (
+                <button
+                  key={v.value}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    selectOption(v);
+                  }}
+                  className={styles["option-badge"]}
+                >
+                  {v.label}
+                  <span className={styles["remove-btn"]}>&times;</span>
+                </button>
+              ))
+            : value?.label}
+        </span>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -67,9 +102,7 @@ export function Select({ value, onChange, options }: SelectProps) {
               key={option.value}
               className={`${styles.option} ${
                 isOptionSelected(option) ? styles.selected : ""
-              } ${
-                index === highlightedIndex ? styles.highlighted : ""
-              }`}
+              } ${index === highlightedIndex ? styles.highlighted : ""}`}
             >
               {option.label}
             </li>
